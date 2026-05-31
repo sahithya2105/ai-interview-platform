@@ -1,45 +1,40 @@
 import axios from 'axios';
 
-const BASE_URL = process.env.REACT_APP_API_URL || 'https://ai-interview-backend-rar0.onrender.com';
-
-const api = axios.create({ baseURL: BASE_URL });
-
 export async function analyzeAnswer({ question, answer, type }) {
-  try {
-    const res = await api.post('/api/interview/analyze', { question, answer, type });
-    return res.data;
-  } catch (err) {
-    // Fallback: call Gemini directly from frontend (if REACT_APP_GEMINI_KEY is set)
-    const key = process.env.REACT_APP_GEMINI_KEY;
-    if (!key) throw err;
+  const key = process.env.REACT_APP_GEMINI_KEY;
+  
+  if (!key) {
+    throw new Error('No API key found');
+  }
 
-    const prompt = `
-You are an AI interview coach. Evaluate this interview answer.
-Question: "${question}"
-Answer: "${answer}"
+  const prompt = `
+You are an expert AI interview coach. Evaluate the following interview response.
+
 Interview Type: ${type}
+Question: "${question}"
+Candidate Answer: "${answer}"
 
-Respond ONLY with a JSON object like:
+Respond ONLY with valid JSON (no markdown, no extra text, no backticks):
 {
-  "confidence": <0-100>,
-  "communication": <0-100>,
-  "technical": <0-100>,
-  "feedback": "<2-3 sentence feedback>",
-  "suggestion": "<1 actionable tip>"
+  "confidence": <integer 0-100>,
+  "communication": <integer 0-100>,
+  "technical": <integer 0-100>,
+  "feedback": "<2-3 sentence constructive feedback>",
+  "suggestion": "<one specific actionable improvement tip>"
 }`;
 
-    const gemRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${key}`,
-      { contents: [{ parts: [{ text: prompt }] }] }
-    );
+  const response = await axios.post(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
+    {
+      contents: [{ parts: [{ text: prompt }] }]
+    }
+  );
 
-    const raw  = gemRes.data.candidates[0].content.parts[0].text;
-    const json = raw.replace(/```json|```/g, '').trim();
-    return JSON.parse(json);
-  }
+  const raw = response.data.candidates[0].content.parts[0].text;
+  const cleaned = raw.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleaned);
 }
 
 export async function getSessions() {
-  const res = await api.get('/api/results');
-  return res.data;
+  return [];
 }
