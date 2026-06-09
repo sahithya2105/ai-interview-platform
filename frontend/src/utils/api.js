@@ -7,56 +7,45 @@ export async function analyzeAnswer({ question, answer, type }) {
     throw new Error('No Gemini API key found');
   }
 
-  const prompt = `
-You are an expert AI interview coach. Evaluate this interview response.
+  const prompt = `You are an expert AI interview coach. Evaluate this interview response.
 
 Interview Type: ${type}
 Question: "${question}"
 Candidate Answer: "${answer}"
 
-Respond ONLY with this exact JSON format (no markdown, no backticks):
-{
-  "confidence": <integer between 0-100>,
-  "communication": <integer between 0-100>,
-  "technical": <integer between 0-100>,
-  "feedback": "<2-3 sentence constructive feedback>",
-  "suggestion": "<one specific actionable tip>"
-}`;
+Respond ONLY with this exact JSON (no markdown, no backticks, no extra text):
+{"confidence":75,"communication":80,"technical":70,"feedback":"Your feedback here in 2-3 sentences.","suggestion":"One specific tip here."}`;
 
-  try {
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
-      {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 500,
-        }
-      }
-    );
+  const models = [
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-1.0-pro',
+  ];
 
-    const raw = response.data.candidates[0].content.parts[0].text;
-    const cleaned = raw.replace(/```json|```/g, '').trim();
-    return JSON.parse(cleaned);
-
-  } catch (err) {
-    // Retry with gemini-2.0-flash if 2.5 fails
-    if (err.response?.status === 429 || err.response?.status === 404) {
-      const retry = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+  for (const model of models) {
+    try {
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
         {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.7,
-            maxOutputTokens: 500,
+            maxOutputTokens: 300,
           }
         }
       );
-      const raw = retry.data.candidates[0].content.parts[0].text;
+
+      const raw = response.data.candidates[0].content.parts[0].text;
       const cleaned = raw.replace(/```json|```/g, '').trim();
-      return JSON.parse(cleaned);
+      const parsed = JSON.parse(cleaned);
+      return parsed;
+
+    } catch (err) {
+      console.log(`Model ${model} failed, trying next...`);
+      if (model === models[models.length - 1]) {
+        throw err;
+      }
     }
-    throw err;
   }
 }
 
