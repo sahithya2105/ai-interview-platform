@@ -16,11 +16,11 @@ Candidate Answer: "${answer}"
 Respond ONLY with this exact JSON (no markdown, no backticks, no extra text):
 {"confidence":75,"communication":80,"technical":70,"feedback":"Your feedback here in 2-3 sentences.","suggestion":"One specific tip here."}`;
 
-  const models = [
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash',
-    'gemini-1.0-pro',
-  ];
+const models = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+];
 
   for (const model of models) {
     try {
